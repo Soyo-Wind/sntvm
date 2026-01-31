@@ -2,8 +2,6 @@ name: Rust Cross-Platform Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'  # v1.2.3 のようなタグを push したときだけ
 
 permissions:
   contents: write   # release asset のアップロードに必要
