@@ -3,6 +3,8 @@ use std::{
     hash::{Hash, Hasher},
     io::{self, Write},
     sync::Arc,
+    env,
+    fs
 };
 
 // ===== Float wrapper =====
@@ -475,25 +477,7 @@ fn execute_ast(ast: &[ASTNode], world: &mut World, branches: &mut HashMap<String
 
 // ===== main =====
 fn main() {
-    let code = "
-        let x = 0;
-        let y = 0;
-        let name = \"\";
-        let lst = [];
-        let st = [];
-        branch x { x = 1; branch y { y = 100; } }
-        merge x;
-        input \"Enter your name: \" name;
-        listpush lst 10;
-        listpush lst 20;
-        setinsert st 5;
-        setinsert st 7;
-        print x;
-        print y;
-        print name;
-        print lst;
-        print st;
-    ";
+    let code = fs::read_to_string(env::args().collect()[1])?;
 
     let tokens = lex(code);
     let ast = parse(&tokens);
