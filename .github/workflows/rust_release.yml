@@ -1,124 +1,65 @@
-name: Build
+name: Rust Cross-Platform Release
+
 on:
-  # Trigger the workflow on pushes to only the 'main' branch (this avoids duplicate checks being run e.g. for dependabot pull requests)
   push:
-  # Trigger the workflow on any pull request
-  pull_request:
+    tags:
+      - 'v*.*.*'  # v1.2.3 のようなタグを push したときだけ
 
 jobs:
   build:
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        target:
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-        include:
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
-    runs-on: ${{ matrix.os }}
-    outputs:
-      version: ${{ steps.properties.outputs.version }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
-          target: ${{ matrix.target }}
           override: true
-      - uses: Swatinem/rust-cache@v1
-      - name: Build release version
-        run: cargo build --verbose --release --target=${{ matrix.target }}
-      - name: Export properties
-        id: properties
-        shell: bash
-        run: |
-          VERSION="$(cargo run --bin version)"
-          echo "::set-output name=version::$VERSION"
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
         with:
-          name: build-${{ matrix.target }}-${{steps.properties.outputs.version}}
-          path: target/${{ matrix.target }}/release/main
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-  draft-release:
-    name: Release Draft
-    if: github.event_name != 'pull_request'
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      # Check out current repository
-      - name: Fetch Sources
-        uses: actions/checkout@v2.3.4
+      - name: Build Release
+        run: cargo build --release
 
-      # Remove old release drafts by using the curl request for the available releases with draft flag
-      - name: Remove Old Release Drafts
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package Binary
         run: |
-          curl -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/$GITHUB_REPOSITORY/releases \
-            | tr '\r\n' ' ' \
-            | jq '.[] | select(.draft == true) | .id' \
-            | xargs -I '{}' \
-          curl -X DELETE -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/$GITHUB_REPOSITORY/releases/{}
-      - name: Create a draft release
+          mkdir -p release
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            zip release/my-project-${{ github.ref_name }}-windows.zip target/release/my-project.exe
+          elif [[ "${{ runner.os }}" == "macos-latest" ]]; then
+            tar czf release/my-project-${{ github.ref_name }}-macos.tar.gz -C target/release my-project
+          else
+            tar czf release/my-project-${{ github.ref_name }}-linux.tar.gz -C target/release my-project
+          fi
+
+      - name: Create GitHub Release
+        id: create_release
         uses: actions/create-release@v1
-        id: createDraftRelease
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ needs.build.outputs.version }}
-          release_name: ${{ needs.build.outputs.version }}
-          body: |
-            ## Changelog
-            - [ ]
-          draft: true
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
           prerelease: false
-      - name: Save upload url of this draft release.
-        run: |
-          echo '${{ steps.createDraftRelease.outputs.upload_url }}' > release_upload_url.txt
-      - name: Upload `release_upload_url.txt`
-        uses: actions/upload-artifact@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          name: draft-release
-          path: release_upload_url.txt
-  attach-assets-to-release:
-    strategy:
-      matrix:
-        target:
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-        include:
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
 
-    needs: [build, draft-release]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v1
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
         with:
-          name: draft-release
-      - id: upload-url
-        run: |
-          echo "::set-output name=url::$(cat draft-release/release_upload_url.txt)"
-      - uses: actions/download-artifact@v1
-        with:
-          name: build-${{ matrix.target }}-${{ needs.build.outputs.version }}
-          path: build/
-      - name: zip the artifact
-        run: zip -j build/main.zip build/main
-      - uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.upload-url.outputs.url }}
-          asset_path: ./build/main.zip
-          asset_name: main-${{ matrix.target }}-${{ needs.build.outputs.version }}.zip
-          asset_content_type: application/zip
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ runner.os == 'Windows' && 'release/my-project-${{ github.ref_name }}-windows.zip' || runner.os == 'macos-latest' && 'release/my-project-${{ github.ref_name }}-macos.tar.gz' || 'release/my-project-${{ github.ref_name }}-linux.tar.gz' }}
+          asset_name: ${{ runner.os == 'Windows' && 'my-project-${{ github.ref_name }}-windows.zip' || runner.os == 'macos-latest' && 'my-project-${{ github.ref_name }}-macos.tar.gz' || 'my-project-${{ github.ref_name }}-linux.tar.gz' }}
+          asset_content_type: application/octet-stream
