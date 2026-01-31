@@ -1,14 +1,12 @@
 name: Rust Cross-Platform Release
 
-# 権限: release 作成とアップロードに必要
 permissions:
-  contents: write
+  contents: write  # Release 作成＆アップロードに必要
 
 on:
   push:
-    branches:
-      - main  # main ブランチ push でトリガー
-    # タグでもトリガーにしたい場合は tags: を使う
+    tags:
+      - 'v*.*.*'   # v1.0.0 形式のタグを push したときだけ実行
 
 jobs:
   build:
@@ -43,20 +41,21 @@ jobs:
         run: |
           mkdir -p release
           BIN_NAME=sntvm
+          TAG_NAME=${GITHUB_REF#refs/tags/}  # push されたタグ名を取得
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            zip release/${BIN_NAME}-${{ github.run_number }}-windows.zip target/release/${BIN_NAME}.exe
+            zip release/${BIN_NAME}-${TAG_NAME}-windows.zip target/release/${BIN_NAME}.exe
           elif [[ "${{ runner.os }}" == "macos-latest" ]]; then
-            tar czf release/${BIN_NAME}-${{ github.run_number }}-macos.tar.gz -C target/release ${BIN_NAME}
+            tar czf release/${BIN_NAME}-${TAG_NAME}-macos.tar.gz -C target/release ${BIN_NAME}
           else
-            tar czf release/${BIN_NAME}-${{ github.run_number }}-linux.tar.gz -C target/release ${BIN_NAME}
+            tar czf release/${BIN_NAME}-${TAG_NAME}-linux.tar.gz -C target/release ${BIN_NAME}
           fi
 
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
         with:
-          tag_name: v${{ github.run_number }}
-          release_name: Release v${{ github.run_number }}
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
         env:
@@ -66,6 +65,6 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ runner.os == 'Windows' && 'release/sntvm-${{ github.run_number }}-windows.zip' || runner.os == 'macos-latest' && 'release/sntvm-${{ github.run_number }}-macos.tar.gz' || 'release/sntvm-${{ github.run_number }}-linux.tar.gz' }}
-          asset_name: ${{ runner.os == 'Windows' && 'sntvm-${{ github.run_number }}-windows.zip' || runner.os == 'macos-latest' && 'sntvm-${{ github.run_number }}-macos.tar.gz' || 'sntvm-${{ github.run_number }}-linux.tar.gz' }}
+          asset_path: ${{ runner.os == 'Windows' && 'release/sntvm-${GITHUB_REF#refs/tags/}-windows.zip' || runner.os == 'macos-latest' && 'release/sntvm-${GITHUB_REF#refs/tags/}-macos.tar.gz' || 'release/sntvm-${GITHUB_REF#refs/tags/}-linux.tar.gz' }}
+          asset_name: ${{ runner.os == 'Windows' && 'sntvm-${GITHUB_REF#refs/tags/}-windows.zip' || runner.os == 'macos-latest' && 'sntvm-${GITHUB_REF#refs/tags/}-macos.tar.gz' || 'sntvm-${GITHUB_REF#refs/tags/}-linux.tar.gz' }}
           asset_content_type: application/octet-stream
