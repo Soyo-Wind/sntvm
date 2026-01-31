@@ -2,6 +2,13 @@ name: Rust Cross-Platform Release
 
 on:
   push:
+    tags:
+      - 'v*.*.*'  # v1.2.3 のようなタグを push したときだけ
+
+permissions:
+  contents: write   # release asset のアップロードに必要
+  packages: write
+  # releases 権限は GITHUB_TOKEN で自動付与される場合もある
 
 jobs:
   build:
