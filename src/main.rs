@@ -477,7 +477,7 @@ fn execute_ast(ast: &[ASTNode], world: &mut World, branches: &mut HashMap<String
 
 // ===== main =====
 fn main() {
-    let code = fs::read_to_string((env::args().collect())[1].as_str()).unwrap();
+    let code = fs::read_to_string((env::args().collect::<Vec<_>>())[1].as_str()).unwrap();
 
     let tokens = lex(&code);
     let ast = parse(&tokens);
