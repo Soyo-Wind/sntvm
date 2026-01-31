@@ -5,9 +5,8 @@ permissions:
 
 on:
   push:
-    tags:
-      - 'v*.*.*'   # v1.0.0 形式のタグを push したときだけ実行
-
+    branches:
+      - main
 jobs:
   build:
     runs-on: ${{ matrix.os }}
