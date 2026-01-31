@@ -3,7 +3,7 @@ name: Rust Cross-Platform Release
 permissions:
   contents: write  # Release 作成＆アップロードに必要
 
-# 手動実行用トリガー
+# 手動実行トリガー
 on:
   workflow_dispatch:
     inputs:
@@ -20,7 +20,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      # 1. コードをチェックアウト
+      # 1. コードチェックアウト
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -45,7 +45,7 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
-      # 5. バイナリをパッケージ化（出力パスを steps.outputs に渡す）
+      # 5. バイナリをパッケージ化（フルパス＆ファイル名を出力）
       - name: Package Binary
         id: package
         run: |
@@ -55,16 +55,23 @@ jobs:
 
           if [[ "${RUNNER_OS}" == "Windows" ]]; then
             FILE=release/${BIN_NAME}-${TAG_NAME}-windows.zip
-            zip $FILE target/release/${BIN_NAME}.exe
           elif [[ "${RUNNER_OS}" == "macOS" ]]; then
             FILE=release/${BIN_NAME}-${TAG_NAME}-macos.tar.gz
-            tar czf $FILE -C target/release ${BIN_NAME}
           else
             FILE=release/${BIN_NAME}-${TAG_NAME}-linux.tar.gz
+          fi
+
+          # パッケージ作成
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            zip $FILE target/release/${BIN_NAME}.exe
+          else
             tar czf $FILE -C target/release ${BIN_NAME}
           fi
 
+          # 出力情報を次ステップに渡す
           echo "file_path=$FILE" >> $GITHUB_OUTPUT
+          FILENAME=$(basename $FILE)
+          echo "file_name=$FILENAME" >> $GITHUB_OUTPUT
 
       # 6. GitHub Release 作成
       - name: Create GitHub Release
@@ -78,11 +85,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 7. Release アセットをアップロード
+      # 7. Release アセットアップロード
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ steps.package.outputs.file_path }}
-          asset_name: ${{ steps.package.outputs.file_path | split('/')[-1] }}
+          asset_name: ${{ steps.package.outputs.file_name }}
           asset_content_type: application/octet-stream
