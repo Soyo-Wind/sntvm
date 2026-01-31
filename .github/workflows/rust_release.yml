@@ -1,9 +1,8 @@
 name: Rust Cross-Platform Release
 
 permissions:
-  contents: write  # Release 作成＆アップロードに必要
+  contents: write
 
-# 手動実行トリガー
 on:
   workflow_dispatch:
     inputs:
@@ -45,7 +44,7 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
-      # 5. バイナリをパッケージ化（フルパス＆ファイル名を出力）
+      # 5. バイナリをパッケージ化（フルパスとファイル名を出力）
       - name: Package Binary
         id: package
         run: |
@@ -83,7 +82,7 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}  # Fine-grained PAT を使用
 
       # 7. Release アセットアップロード
       - name: Upload Release Asset
