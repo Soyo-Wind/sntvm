@@ -1,16 +1,16 @@
 name: Rust Cross-Platform Release
 
 permissions:
-  contents: write
+  contents: write  # Release 作成＆アップロードに必要
 
 # 手動実行用トリガー
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag v0.1.0'
+        description: 'Release tag (例: v1.0.0)'
         required: true
-        default: 'v0.1.0'
+        default: 'v1.0.0'
 
 jobs:
   build:
@@ -20,9 +20,11 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
+      # 1. コードをチェックアウト
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Rust セットアップ
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -30,6 +32,7 @@ jobs:
           profile: minimal
           override: true
 
+      # 3. Cargo 依存キャッシュ
       - name: Cache Cargo registry
         uses: actions/cache@v3
         with:
@@ -38,23 +41,32 @@ jobs:
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      # 4. リリースビルド
       - name: Build Release
         run: cargo build --release
 
+      # 5. バイナリをパッケージ化（出力パスを steps.outputs に渡す）
       - name: Package Binary
+        id: package
         run: |
           mkdir -p release
           BIN_NAME=sntvm
           TAG_NAME=${{ github.event.inputs.tag }}
 
           if [[ "${RUNNER_OS}" == "Windows" ]]; then
-            zip release/${BIN_NAME}-${TAG_NAME}-windows.zip target/release/${BIN_NAME}.exe
+            FILE=release/${BIN_NAME}-${TAG_NAME}-windows.zip
+            zip $FILE target/release/${BIN_NAME}.exe
           elif [[ "${RUNNER_OS}" == "macOS" ]]; then
-            tar czf release/${BIN_NAME}-${TAG_NAME}-macos.tar.gz -C target/release ${BIN_NAME}
+            FILE=release/${BIN_NAME}-${TAG_NAME}-macos.tar.gz
+            tar czf $FILE -C target/release ${BIN_NAME}
           else
-            tar czf release/${BIN_NAME}-${TAG_NAME}-linux.tar.gz -C target/release ${BIN_NAME}
+            FILE=release/${BIN_NAME}-${TAG_NAME}-linux.tar.gz
+            tar czf $FILE -C target/release ${BIN_NAME}
           fi
 
+          echo "file_path=$FILE" >> $GITHUB_OUTPUT
+
+      # 6. GitHub Release 作成
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -66,10 +78,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # 7. Release アセットをアップロード
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ runner.os == 'Windows' && 'release/sntvm-${{ github.event.inputs.tag }}-windows.zip' || runner.os == 'macOS' && 'release/sntvm-${{ github.event.inputs.tag }}-macos.tar.gz' || 'release/sntvm-${{ github.event.inputs.tag }}-linux.tar.gz' }}
-          asset_name: ${{ runner.os == 'Windows' && 'sntvm-${{ github.event.inputs.tag }}-windows.zip' || runner.os == 'macOS' && 'sntvm-${{ github.event.inputs.tag }}-macos.tar.gz' || 'sntvm-${{ github.event.inputs.tag }}-linux.tar.gz' }}
+          asset_path: ${{ steps.package.outputs.file_path }}
+          asset_name: ${{ steps.package.outputs.file_path | split('/')[-1] }}
           asset_content_type: application/octet-stream
