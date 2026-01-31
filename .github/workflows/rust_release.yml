@@ -64,5 +64,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ runner.os == 'Windows' && 'release/sntvm-${{ github.ref_name }}-windows.zip' || runner.os == 'macos-latest' && 'release/sntvm-${{ github.ref_name }}-macos.tar.gz' || 'release/sntvm-${{ github.ref_name }}-linux.tar.gz' }}
-          asset_name: ${{ runner.os == 'Windows' && 'my-project-${{ github.ref_name }}-windows.zip' || runner.os == 'macos-latest' && 'my-project-${{ github.ref_name }}-macos.tar.gz' || 'my-project-${{ github.ref_name }}-linux.tar.gz' }}
+          asset_name: ${{ runner.os == 'Windows' && 'sntvm-${{ github.ref_name }}-windows.zip' || runner.os == 'macos-latest' && 'sntvm-${{ github.ref_name }}-macos.tar.gz' || 'sntvm-${{ github.ref_name }}-linux.tar.gz' }}
           asset_content_type: application/octet-stream
