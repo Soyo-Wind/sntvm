@@ -36,11 +36,11 @@ jobs:
         run: |
           mkdir -p release
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            zip release/my-project-${{ github.ref_name }}-windows.zip target/release/my-project.exe
+            zip release/sntvm-${{ github.ref_name }}-windows.zip target/release/sntvm.exe
           elif [[ "${{ runner.os }}" == "macos-latest" ]]; then
-            tar czf release/my-project-${{ github.ref_name }}-macos.tar.gz -C target/release my-project
+            tar czf release/sntvm-${{ github.ref_name }}-macos.tar.gz -C target/release sntvm
           else
-            tar czf release/my-project-${{ github.ref_name }}-linux.tar.gz -C target/release my-project
+            tar czf release/sntvm-${{ github.ref_name }}-linux.tar.gz -C target/release sntvm
           fi
 
       - name: Create GitHub Release
@@ -58,6 +58,6 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ runner.os == 'Windows' && 'release/my-project-${{ github.ref_name }}-windows.zip' || runner.os == 'macos-latest' && 'release/my-project-${{ github.ref_name }}-macos.tar.gz' || 'release/my-project-${{ github.ref_name }}-linux.tar.gz' }}
+          asset_path: ${{ runner.os == 'Windows' && 'release/sntvm-${{ github.ref_name }}-windows.zip' || runner.os == 'macos-latest' && 'release/sntvm-${{ github.ref_name }}-macos.tar.gz' || 'release/sntvm-${{ github.ref_name }}-linux.tar.gz' }}
           asset_name: ${{ runner.os == 'Windows' && 'my-project-${{ github.ref_name }}-windows.zip' || runner.os == 'macos-latest' && 'my-project-${{ github.ref_name }}-macos.tar.gz' || 'my-project-${{ github.ref_name }}-linux.tar.gz' }}
           asset_content_type: application/octet-stream
